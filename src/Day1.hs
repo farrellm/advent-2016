@@ -7,8 +7,6 @@ import ClassyPrelude
 import Control.Lens
 import Control.Monad.State (StateT, evalStateT, get, modify)
 import Data.Attoparsec.Text
-import qualified Data.Set as Set
-import Data.Set (Set)
 import Linear
 
 import Debug.Trace
@@ -25,7 +23,7 @@ test3 = "R5, L5, R5, R3"
 test4 :: Text
 test4 = "R8, R4, R4, R8"
 
-input :: IO ByteString
+input :: IO Text
 input = readFile "data/day1.txt"
 
 l :: M44 Int
@@ -65,7 +63,7 @@ moves :: Parser [Move]
 moves = move `sepBy` string ", "
 
 result1 =
-  do t <- decodeUtf8 <$> input
+  do t <- input
      pure $
        do ms <- parseOnly moves t
           let v = foldl' update origin ms
@@ -84,12 +82,12 @@ step v s = case s of
   S -> (identity !+! m) !* v
 
 result2 =
-  do t <- decodeUtf8 <$> input
+  do t <- input
      -- t <- (pure test4 :: IO Text)
      pure $
        do ms <- parseOnly moves t
           let ss = ms >>= expand
-          let ev = evalStateT (foldM go origin ss) Set.empty
+          let ev = evalStateT (foldM go origin ss) mempty
           pure $ case ev of
             Left v -> Left $ abs (v^._x) + abs (v^._y)
             Right r -> Right r
@@ -99,9 +97,9 @@ result2 =
           do let v' = step v S
                  xy = v'^._xy
              s <- get
-             if xy `Set.member` s
+             if xy `member` s
                then lift (Left xy)
-               else do modify (Set.insert xy)
+               else do modify (insertSet xy)
                        pure v'
         go v r =
           do let v' = step v r
