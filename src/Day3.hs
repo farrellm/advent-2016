@@ -27,28 +27,23 @@ mkTrip a b c
 
 trip :: Parser Trip
 trip =
-  mkTrip <$> (skipSpace *> decimal) <*> (skipSpace *> decimal) <*>
-  (skipSpace *> decimal)
+  mkTrip <$> (skipSpace *> decimal) <*> (skipSpace *> decimal) <*> (skipSpace *> decimal)
 
 isTriangle :: Trip -> Bool
 isTriangle (Trip a (b,c)) = a < (b+c)
 
 result1 =
   do els <- parseOnly (trip `sepBy1` endOfLine) <$> input
-     pure (length <$> filter isTriangle <$> els)
+     pure ((length . filter isTriangle) <$> els)
 
 row :: Parser [Int]
 row =
-  l3 <$> (skipSpace *> decimal) <*> (skipSpace *> decimal) <*>
-  (skipSpace *> decimal)
+  l3 <$> (skipSpace *> decimal) <*> (skipSpace *> decimal) <*> (skipSpace *> decimal)
   where l3 a b c = [a, b, c]
 
 result2 =
   do ers <- parseOnly (row `sepBy1` endOfLine) <$> input
-     let els = do
-           rs <- ers
-           let ls = concat . map (chunksOf 3) $ transpose rs
-           pure $ map listToTrip ls
+     let els = (map listToTrip . concat . map (chunksOf 3) . transpose) <$> ers
      pure (length <$> filter isTriangle <$> els)
   where chunksOf _ [] = []
         chunksOf n ls = let (h,t) = splitAt n ls
