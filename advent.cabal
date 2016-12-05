@@ -20,6 +20,7 @@ library
                      , attoparsec
                      , classy-prelude
                      , containers
+                     , cryptohash
                      , lens
                      , linear
                      , mtl
