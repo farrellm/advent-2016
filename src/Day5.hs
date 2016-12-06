@@ -4,14 +4,10 @@ module Day5 where
 
 import ClassyPrelude
 
-import Control.Lens hiding (Index, index)
-import Control.Monad.State (StateT, evalStateT, get, modify)
 import qualified Crypto.Hash.MD5 as MD5
-import Data.Attoparsec.Text hiding (take)
 import Data.Char (ord)
 import qualified Data.Vector as V
-import Data.Word
-import Numeric (showHex)
+import Data.Text.Format
 
 import Debug.Trace
 
@@ -22,33 +18,44 @@ input :: String
 input = "cxdnnyjw"
 -- input = "abc"
 
+showHex :: Word8 -> LText
+showHex i = format "{}" $ Only (left 2 '0' $ hex i)
+
 xs :: String
 xs = take 8 .
-     catMaybes .
-     map (`index` 5) .
+     map (! 5) .
      filter (isPrefixOf "00000") .
-     map (concat . map (\i -> pad $ showHex i "")) .
-     map unpack .
+     map (concatMap showHex) .
      map MD5.hash $
-     map (\i-> fromString (input ++ show i) :: ByteString) [0..]
-  where pad cs@[c] = '0' : cs
-        pad cs = cs
+     map (fromString . (input <>) . show) [0..]
+
+-- Alternate structuring of xs
+xs' =
+  let inputs = (fromString . (input <>) . show) <$> [0 ..]
+      hashes = MD5.hash <$> inputs
+      hexes = concatMap showHex <$> hashes
+      hexes' = filter (isPrefixOf "00000") hexes
+      key = (! 5) <$> hexes'
+  in take 5 key
 
 ys :: [(Int, Char)]
-ys = map (\w -> (ord (w `indexEx` 5) - ord '0', w `indexEx` 6)) .
-     filter (isPrefixOf "00000") .
-     map (concat . map (\i -> pad $ showHex i "")) .
-     map unpack .
-     map MD5.hash $
-     map (\i-> fromString (input ++ show i) :: ByteString) [0..]
-  where pad cs@[c] = '0' : cs
-        pad cs = cs
+ys = map (\w -> (ord (w ! 5) - ord '0', w ! 6)) .
+     filter (isPrefixOf "00000") $
+     map (concatMap showHex .
+          MD5.hash .
+          fromString .
+          (input <>) .
+          show) [0..]
 
 y :: String
-y = let e = replicate 8 ' ' :: Vector Char
-        go 8 v _ = v
-        go n v ((i, c):zs) =
-          if i < 8 && v `indexEx` i == ' '
-          then go (n+1) (v V.// [(i, c)]) zs
-          else go n v zs
-    in V.toList (go 0 e ys)
+y =
+  let e = replicate 8 ' ' :: Vector Char
+      go 8 v _ = v
+      go n v ((i,c):zs) =
+        if i < 8 && v ! i == ' '
+           then traceShow v $
+                go (n + 1)
+                   (v V.// [(i,c)])
+                   zs
+           else go n v zs
+  in V.toList (go 0 e ys)
