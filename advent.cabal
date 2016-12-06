@@ -25,6 +25,7 @@ library
                      , lens
                      , linear
                      , mtl
+                     , microlens-platform
                      , text-format
                      , vector
   default-language:    Haskell2010
