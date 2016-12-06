@@ -3,12 +3,7 @@
 module Day6 where
 
 import ClassyPrelude
-
-import Lens.Micro.Platform
-import Data.Attoparsec.Text hiding (take)
 import Data.List (transpose)
-
-import Debug.Trace
 
 input :: IO String
 input = readFile "data/day6.txt"
