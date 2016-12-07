@@ -4,8 +4,7 @@ module Day4 where
 
 import ClassyPrelude
 
-import Control.Lens
-import Control.Monad.State (StateT, evalStateT, get, modify)
+import Control.Monad.Trans.Either
 import Data.Attoparsec.Text hiding (take)
 import Data.Char
 
@@ -48,18 +47,19 @@ p4 = parseOnly entry t4
 
 isValid :: Entry -> Bool
 isValid e =
-  let gs = group $ sort (filter (\c -> c /= '-') (_name e))
-      cs = toCounts =<< gs
+  let gs = group $ sort (filter (/= '-') (_name e))
+      cs = concatMap toCounts gs
       cs' = take 5 $ sortBy (comparing (\(i,c) -> (-i, c))) cs
-      check = map (^._2) cs'
+      check = map snd cs'
   in _check e == check
   where toCounts xs@(x:_) = [(length xs, x)]
         toCounts _ = []
 
 result1 =
-  do -- ees <- parseOnly (entry `sepBy1` endOfLine) <$> input
-     ees <- parseOnly (entry `sepBy1` endOfLine) <$> (pure test :: IO Text)
-     pure $ (sum . map _room . filter isValid) <$> ees
+  runEitherT $
+  do es <- EitherT (parseOnly (entry `sepBy1` endOfLine) <$> input)
+     -- es <- EitherT (parseOnly (entry `sepBy1` endOfLine) <$> (pure test :: IO Text))
+     pure (sum . map _room $ filter isValid es)
 
 shiftLetter :: Int -> Char -> Char
 shiftLetter _ '-' = '-'
@@ -69,8 +69,13 @@ shiftLetter i c =
   in chr (((c' - a) + i) `mod` 26 + a)
 
 result2 =
-  do ees <- parseOnly (entry `sepBy1` endOfLine) <$> input
-     -- ees <- parseOnly (entry `sepBy1` endOfLine) <$> (pure test :: IO Text)
+  runEitherT $
+  do es <- EitherT (parseOnly (entry `sepBy1` endOfLine) <$> input)
+     -- es <- EitherT (parseOnly (entry `sepBy1` endOfLine) <$> (pure test :: IO Text))
      -- pure $ (map decode . filter isValid) <$> ees
-     pure $ (filter (\e -> decode e == "northpole-object-storage") . filter isValid) <$> ees
- where decode e = map (shiftLetter (_room e)) (_name e)
+     pure
+       (filter (\e -> decode e == "northpole-object-storage") $
+        filter isValid es)
+  where decode e =
+          map (shiftLetter (_room e))
+              (_name e)
