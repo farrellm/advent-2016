@@ -5,6 +5,7 @@ module Day1 where
 import ClassyPrelude
 
 import Control.Lens
+import Control.Monad.Trans.Either
 import Control.Monad.State (StateT, evalStateT, get, modify)
 import Data.Attoparsec.Text
 import Linear
@@ -63,11 +64,10 @@ moves :: Parser [Move]
 moves = move `sepBy` string ", "
 
 result1 =
-  do t <- input
-     pure $
-       do ms <- parseOnly moves t
-          let v = foldl' update origin ms
-          pure $ abs (v^._x) + abs (v^._y)
+  runEitherT $
+  do ms <- EitherT (parseOnly moves <$> input)
+     let v = foldl' update origin ms
+     pure $ abs (v ^. _x) + abs (v ^. _y)
 
 data Step = L | R | S
 
@@ -82,25 +82,23 @@ step v s = case s of
   S -> (identity !+! m) !* v
 
 result2 =
-  do t <- input
-     -- t <- (pure test4 :: IO Text)
+  runEitherT $
+  do ms <- EitherT (parseOnly moves <$> input)
+     -- ms <- EitherT (parseOnly moves <$> (pure test4 :: IO Text))
+     let ss = ms >>= expand
+         ev = evalStateT (foldM go origin ss) mempty
      pure $
-       do ms <- parseOnly moves t
-          let ss = ms >>= expand
-          let ev = evalStateT (foldM go origin ss) mempty
-          pure $ case ev of
-            Left v -> Left $ abs (v^._x) + abs (v^._y)
-            Right r -> Right r
-  where go :: V4 Int -> Step ->
-              StateT (Set (V2 Int)) (Either (V2 Int)) (V4 Int)
+       case ev of
+         Left v -> Left (abs (v ^. _x) + abs (v ^. _y))
+         Right v -> Right v
+  where go
+          :: V4 Int -> Step -> StateT (Set (V2 Int)) (Either (V2 Int)) (V4 Int)
         go v S =
           do let v' = step v S
-                 xy = v'^._xy
+                 xy = v' ^. _xy
              s <- get
              if xy `member` s
-               then lift (Left xy)
-               else do modify (insertSet xy)
-                       pure v'
-        go v r =
-          do let v' = step v r
-             pure v'
+                then lift (Left xy)
+                else do modify (insertSet xy)
+                        pure v'
+        go v r = pure (step v r)
