@@ -7,20 +7,10 @@ module Lib
 import ClassyPrelude
 
 import qualified Day5 as Day5
-
-class ToString a where
-  toString :: a -> Text
-
-instance {-# OVERLAPPABLE #-} Show a => ToString a where
-  toString = tshow
-
-instance ToString Text where
-  toString = id
-
-instance ToString [Char] where
-  toString = pack
+import qualified Day9 as Day9
 
 day5 = Day5.y
+day9 = Day9.result2
 
 someFunc :: IO ()
-someFunc = putStrLn (toString  day5)
+someFunc = day9 >>= print
