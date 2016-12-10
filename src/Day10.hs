@@ -1,21 +1,12 @@
-{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, TupleSections, GADTs #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, TupleSections #-}
 
 module Day10 where
 
 import ClassyPrelude
 
-import Control.Monad.State (State, evalState, evalStateT, get, put, modify)
 import Control.Monad.Trans.Either
 import Data.Attoparsec.Text
-       (Parser, parseOnly, many1, sepBy, char, digit, letter, space,
-        string, skipSpace, decimal, hexadecimal, double, signed, endOfLine)
-import Data.Char (chr,ord)
-import Data.List (elemIndex, transpose)
-import Data.Vector ((//))
-import Lens.Micro.Platform
-
-(!) :: IsSequence seq => seq -> Index seq -> Element seq
-(!) = indexEx
+       (Parser, parseOnly, sepBy, string, decimal, endOfLine)
 
 input :: IO Text
 input = readFile "data/day10.txt"
@@ -31,24 +22,22 @@ data Reciever = RBot Int | Output Int
 data Input = Init Value Bot | Gives Bot Reciever Reciever
   deriving (Show)
 
-reciever =
-  RBot <$> (string "bot " *> decimal) <|>
-  Output <$> (string "output " *> decimal)
+type Bots = Map Reciever [Int]
 
+parser :: Parser Input
 parser =
   Init <$> (Value <$> (string "value " *> decimal)) <*>
     (Bot <$> (string " goes to bot " *> decimal)) <|>
   Gives <$> (Bot <$> (string "bot " *> decimal)) <*>
     (string " gives low to " *> reciever) <*>
     (string " and high to " *> reciever)
-
-type Bots = Map Reciever [Int]
+  where reciever =
+          RBot <$> (string "bot " *> decimal) <|>
+          Output <$> (string "output " *> decimal)
 
 initialize :: Bots -> Input -> Bots
 initialize bs (Init (Value v) (Bot b)) =
-  case lookup (RBot b) bs of
-    Just vs -> insertMap (RBot b) (v:vs) bs
-    Nothing -> insertMap (RBot b) [v] bs
+  insertWith (<>) (RBot b) [v] bs
 initialize bs _ = bs
 
 update :: [Input] -> Bots -> Either Reciever Bots
@@ -58,20 +47,18 @@ update i bs =
                   (mapToList bs) of
           Just p -> p
           Nothing -> error "no bot with 2!"
-      [l,h] = sort vs
-  in traceShow (b,vs) $
-     if (sort vs) == [17,61]
+      svs@[vl,vh] = sort vs
+  in if svs == [17,61]
         then Left b
         else case find (bGives b) i of
-               Just (Gives _ x y) -> pure (ac l x . ac h y $ insertMap b [] bs)
+               Just (Gives _ bl bh) ->
+                 pure (insertWith (<>) bl [vl] .
+                       insertWith (<>) bh [vh] $
+                       insertMap b [] bs)
+               Nothing -> error ("no instruction for bot " <> show b)
   where bGives (RBot b) (Gives (Bot c) _ _)
           | b == c = True
         bGives _ _ = False
-        ac :: Int -> Reciever -> Bots -> Bots
-        ac l x m =
-          case lookup x m of
-            Just y -> insertMap x (l : y) m
-            Nothing -> insertMap x [l] m
 
 loop :: Monad m => (a -> m a) -> a -> m a
 loop f i =
@@ -91,25 +78,24 @@ update' i bs =
                   (mapToList bs) of
           Just p -> p
           Nothing -> error "no bot with 2!"
-      [l,h] = sort vs
+      [vl,vh] = sort vs
       prod =
-        do (a:_) <- lookup (Output 0) bs
-           (b:_) <- lookup (Output 1) bs
-           (c:_) <- lookup (Output 2) bs
-           pure (a * b * c)
+        do (x:_) <- lookup (Output 0) bs
+           (y:_) <- lookup (Output 1) bs
+           (z:_) <- lookup (Output 2) bs
+           pure (x * y * z)
   in case prod of
        Just p -> Left p
        Nothing ->
          case find (bGives b) i of
-           Just (Gives _ x y) -> pure (ac l x . ac h y $ insertMap b [] bs)
+           Just (Gives _ bl bh) ->
+             pure (insertWith (<>) bl [vl] .
+                   insertWith (<>) bh [vh] $
+                   insertMap b [] bs)
+           Nothing -> error ("no instruction for bot " <> show b)
   where bGives (RBot b) (Gives (Bot c) _ _)
           | b == c = True
         bGives _ _ = False
-        ac :: Int -> Reciever -> Bots -> Bots
-        ac l x m =
-          case lookup x m of
-            Just y -> insertMap x (l : y) m
-            Nothing -> insertMap x [l] m
 
 result2 =
   runEitherT $
