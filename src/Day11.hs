@@ -1,4 +1,5 @@
-{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, TupleSections, GADTs #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, TupleSections, GADTs,
+             GeneralizedNewtypeDeriving #-}
 
 module Day11 where
 
@@ -12,8 +13,8 @@ import Data.Attoparsec.Text
 import Data.Char (chr,ord)
 import Data.List (elemIndex, transpose)
 import qualified Data.List as L
-import qualified Data.Set as S
--- import qualified Data.HashSet as S
+-- import qualified Data.Set as S
+import qualified Data.HashSet as S
 import Data.Vector ((//))
 import Lens.Micro.Platform
 
@@ -25,8 +26,14 @@ subsequencesOfSize n xs = let l = length xs
    subsequencesBySize (x:xs) = let next = subsequencesBySize xs
                              in zipWith (++) ([]:next) (map (map (x:)) next ++ [[]])
 
-data Obj = Gen Text | Chip Text
-  deriving (Show, Eq, Ord)
+newtype Gen = Gen Text
+  deriving (Show, Eq, Ord, Hashable)
+
+newtype Chip = Chip Text
+  deriving (Show, Eq, Ord, Hashable)
+
+type Obj = Either Gen Chip
+
 data Floor = Floor Int [Obj]
   deriving (Show)
 
@@ -51,17 +58,17 @@ parser =
       (string "first" *> pure 1) <|> (string "second" *> pure 2) <|>
       (string "third" *> pure 3) <|> (string "fourth" *> pure 4)
     obj =
-      (Gen . pack) <$> (string "a " *> many1 letter <* " generator") <|>
-      (Chip . pack) <$> (string "a " *> many1 letter <* "-compatible microchip")
+      (Left . Gen . pack) <$> (string "a " *> many1 letter <* " generator") <|>
+      (Right . Chip . pack) <$> (string "a " *> many1 letter <* "-compatible microchip")
     sep = many (char ',') *> many (char ' ') *> many (string "and ")
 
-splitObjs :: Set Obj -> ([Text], [Text])
+splitObjs :: HashSet Obj -> ([Text], [Text])
 splitObjs os = foldl' splitObj ([],[]) os
   where splitObj (cs,gs) o = case o of
-          Chip c -> (c:cs,gs)
-          Gen g -> (cs,g:gs)
+          Left (Gen g) -> (cs,g:gs)
+          Right (Chip c) -> (c:cs,gs)
 
-type FloorMap = Map Int (Set Obj)
+type FloorMap = HashMap Int (HashSet Obj)
 
 type Status = (Int, FloorMap)
 
@@ -99,16 +106,36 @@ move (e, fs) =
            (e', adjustMap (<> ms') e' $ adjustMap (`difference` ms') e fs)
      pure st'
 
-loop :: Int -> (Int, [Status]) -> Set Status -> [Int]
+loop :: Int -> (Int, [Status]) -> HashSet Status -> [Int]
 loop n (i, ss) past =
   let i' = i + 1
       ss' = S.filter isSafe .
-            (`S.difference` past) .
+            (`difference` past) .
             setFromList $
             concatMap move ss
       (a, b) = partition (isDone n) (setToList ss')
+      past' = past <> ss'
   in traceShow (i, length ss) $
-     (fmap (const i') a) <> loop n (i', b) (past <> ss')
+     (fmap (const i') a) <> loop n (i', b) past'
+
+loop' :: Int -> (Int, [Status]) -> (Int, HashSet Status) -> [Int]
+loop' n (i, ss) (best, past) =
+  let i' = i + 1
+      ss' = S.filter isSafe .
+            S.filter (\s -> potential s >= best - 4) .
+            (`difference` past) .
+            setFromList $
+            concatMap move ss
+      (a, b) = partition (isDone n) (setToList ss')
+      past' = past <> ss'
+      best' = case fromNullable (fmap potential (setToList ss')) of
+                Just b -> maximum (best <| b)
+                Nothing -> best
+  in traceShow (i, length ss, best, best') $
+     (fmap (const i') a) <> loop' n (i', b) (best', past')
+  where potential :: Status -> Int
+        potential (_, fs) = sum $ fmap (\(f, os) -> f * S.size os)
+                                  (mapToList fs)
 
 result1 =
   runEitherT $
@@ -116,7 +143,7 @@ result1 =
      -- i <- EitherT (parseOnly (parser `sepBy1` endOfLine) <$> test)
      let fs = fromFloors i
      -- pure (take 1 $ loop 10 (0, [(1, fs)]) mempty)
-     pure (take 1 $ loop 10 (0, [(1, fs)]) mempty)
+     pure (take 1 $ loop' 10 (0, [(1, fs)]) (0, mempty))
      -- pure fs
 
 result2 =
@@ -126,12 +153,13 @@ result2 =
          fs' =
            adjustMap
              (<> setFromList
-                   [ Gen "elerium"
-                   , Chip "elerium"
-                   , Gen "dilithium"
-                   , Chip "dilithium"
+                   [ Left (Gen "elerium")
+                   , Right (Chip "elerium")
+                   , Left (Gen "dilithium")
+                   , Right (Chip "dilithium")
                    ])
              1
              fs
-     pure (take 1 $ loop 14 (0, [(1, fs')]) mempty)
+     -- pure (take 1 $ loop 14 (0, [(1, fs')]) mempty)
+     pure (take 1 $ loop' 14 (0, [(1, fs')]) (0, mempty))
      -- pure fs'

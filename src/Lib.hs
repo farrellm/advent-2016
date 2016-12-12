@@ -9,4 +9,4 @@ import ClassyPrelude
 import qualified Day11
 
 someFunc :: IO ()
-someFunc = Day11.result1 >>= print
+someFunc = Day11.result2 >>= print
