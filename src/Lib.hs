@@ -1,5 +1,5 @@
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE NoImplicitPrelude, FlexibleInstances #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
+
 module Lib
     ( someFunc
     ) where
