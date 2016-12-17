@@ -17,7 +17,7 @@ module AdventPrelude
 
 import ClassyPrelude
 
-import Control.Monad.Trans.Either
+import Control.Monad.Trans.Either hiding (right, left)
 import Control.Monad.State
        (State, StateT, runState, evalState, execState, runStateT,
         evalStateT, execStateT, get, put, modify)
