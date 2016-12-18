@@ -13,6 +13,7 @@ module AdventPrelude
   , module Lens.Micro.Platform
   , (!!)
   , (!)
+  , showBytes
   ) where
 
 import ClassyPrelude
@@ -28,6 +29,7 @@ import Data.Attoparsec.Text
 import Data.Bits
 import Data.Char (chr,ord)
 import Data.List (elemIndex, transpose)
+import Data.Text.Format hiding (print)
 import Data.Vector ((//))
 import Data.Word
 import Lens.Micro.Platform
@@ -40,3 +42,9 @@ import Lens.Micro.Platform
 m ! k = case lookup k m of
           Just v -> v
           Nothing -> error "missing key in map"
+
+showBytes :: ByteString -> LText
+showBytes bs =
+  concat .
+  fmap (format "{}" . (Only . left 2 '0' . hex )) $
+  unpack bs
