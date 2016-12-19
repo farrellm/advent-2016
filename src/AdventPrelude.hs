@@ -8,6 +8,7 @@ module AdventPrelude
   , module Data.Bits
   , module Data.Char
   , module Data.List
+  , module Data.Sequence
   , module Data.Vector
   , module Data.Word
   , module Lens.Micro.Platform
@@ -29,6 +30,7 @@ import Data.Attoparsec.Text
 import Data.Bits
 import Data.Char (chr,ord)
 import Data.List (elemIndex, transpose)
+import Data.Sequence (Seq, ViewL(..), viewl, (|>), (><))
 import Data.Text.Format hiding (print)
 import Data.Vector ((//))
 import Data.Word
