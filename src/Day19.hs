@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, TupleSections, GADTs, ViewPatterns #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, TupleSections, GADTs #-}
 
 module Day19 where
 
