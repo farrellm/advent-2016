@@ -15,6 +15,7 @@ module AdventPrelude
   , (!!)
   , (!)
   , showBytes
+  , md5Hash
   ) where
 
 import ClassyPrelude
@@ -35,6 +36,7 @@ import Data.Text.Format hiding (print)
 import Data.Vector ((//))
 import Data.Word
 import Lens.Micro.Platform
+import qualified Crypto.Hash.MD5 as MD5
 
 
 (!!) :: IsSequence seq => seq -> Index seq -> Element seq
@@ -50,3 +52,6 @@ showBytes bs =
   concat .
   fmap (format "{}" . (Only . left 2 '0' . hex )) $
   unpack bs
+
+md5Hash :: ByteString -> ByteString
+md5Hash = MD5.hash
