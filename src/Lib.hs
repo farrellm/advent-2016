@@ -6,7 +6,7 @@ module Lib
 
 import ClassyPrelude
 
-import qualified Day11
+import qualified Day22
 
 someFunc :: IO ()
-someFunc = Day11.result2 >>= print
+someFunc = Day22.result2 >>= print
