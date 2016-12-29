@@ -1,5 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings, TupleSections, GADTs, FlexibleContexts #-}
-{-# LANGUAGE ViewPatterns, Rank2Types, Arrows #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Day22 where
 
@@ -85,96 +85,47 @@ showGrid (go, gt) =
     showRow (ro, rt) = intercalate " | " $ map showCell (zip ro rt)
     showCell (o, t) = format "{}/{}" (left 2 ' ' (tshow o), left 2 ' ' (tshow t))
 
-showGrid' :: (Coord, Grid) -> LText
-showGrid' ((x, y), (go, gt)) =
+showGrid' :: (Coord, Coord, Grid) -> LText
+showGrid' ((x, y), _, (go, gt)) =
   unlines $ S.mapWithIndex showRow (S.zip (tr go) (tr gt))
   where
     showRow y' (ro, rt) = unwords $ S.mapWithIndex (showCell y') (zip ro rt)
     showCell _ _ (0, t) = "_"
     showCell y' x' (o, t)
       | x == x' && y == y' = "G"
-      | o > 20 = "#"
+      | o > 100 = "#"
       | otherwise = "."
 
-showResult :: [(Coord, Grid)] -> LText
+showResult :: [(Coord, Coord, Grid)] -> LText
 showResult rs =
   intercalate "\n\n" (map showGrid' rs)
 
-type Point = (Coord, Grid)
-type Path = [Point]
-
 used x y = _1 . ix x . ix y
-
 total x y = _2 . ix x . ix y
-
-avail x y = lens getter setter
-  where getter = proc g -> do
-          Just u <- (^? used x y) -< g
-          Just t <- (^? total x y) -< g
-          returnA -< t - u
-        setter = fail "cannot set available space"
-
-score :: Point -> Int
-score ((x, y), g) =
-  let [(zx, zy)] = do
-        let mx = S.length (g ^. _1)
-            my = S.length (g ^. _1 . ix 0)
-        x <- [0..(mx - 1)]
-        y <- [0..(my - 1)]
-        if (g ^? used x y) == Just 0
-           then [(x, y)]
-           else []
-  in x + y + abs (max 0 (x - 1) - zx) + abs (max 0 (y - 1) - zy)
-
-step :: [Path] -> State (Int, (Set Grid)) [Path]
-step ps = do
-  best <- use _1
-  past <- use _2
-  let sps = traceShow (length ps, size past) $ do
-        p@(((x, y), g) : _) <- ps
-
-        let mx = S.length (g ^. _1)
-            my = S.length (g ^. _1 . ix 0)
-            isValid x1 y1 x2 y2 =
-              let Just u = g ^? used x1 y1
-                  Just a = g ^? avail x2 y2
-              in 0 <= x2 && x2 < mx &&
-                 0 <= y2 && y2 < my &&
-                 0 < u && u <= a
-
-        x1 <- [0..(mx - 1)]
-        y1 <- [0..(my - 1)]
-
-        (x2, y2) <- [(x1+1, y1), (x1-1, y1), (x1, y1+1), (x1, y1-1)]
-        guard (isValid x1 y1 x2 y2)
-
-        let (x', y') = if x == x1 && y == y1
-                          then (x2, y2)
-                          else (x, y)
-            Just u = g ^? used x1 y1
-            g' = g & used x1 y1 .~ 0
-                   & used x2 y2 %~ (+ u)
-            s = score ((x', y'), g')
-
-        guard (g' `notMember` past)
-        guard (s <= best + 2)
-        pure (s, (((x', y'), g') : p))
-      ss = map fst sps
-      ps' = map snd sps
-      (a, b) = partition isDone ps'
-
-  _1 .= minimum (best `ncons` ss)
-  _2 %= (<> setFromList (map (^. ix 0 . _2) ps'))
-
-  -- trace (unpack $ showResult ps') $
-  (a <>) <$> step b
-  where isDone (((x, y), _) : _) = x == 0 && y == 0
 
 result2 :: IO (Either String Int)
 result2 =
   runEitherT $
   do i <- EitherT (parseOnly (parser `sepBy1` endOfLine) <$> input)
      let tgtX = maximumEx (fmap nX $ filter ((== 0) . nY) i)
+         Just (zx, zy) = (nX &&& nY) <$> (find ((== 0) . nUsed) i)
          g = mkGrid i
-         r : _ = evalState (step [[((tgtX, 0), g)]]) (1000, setFromList [g])
+         r = stepSearch (step g) heur isDone id ((tgtX, 0), (zx, zy))
      pure (length r - 1)
+  where
+    isDone ((x, y), _) = x == 0 && y == 0
+    heur ((x, y), (zx, zy)) = x + y + abs (x - zx) + abs (y - zy)
+    step g (xy@(x, y), zxy@(zx, zy)) = do
+      let mx = S.length (g ^. _1)
+          my = S.length (g ^. _1 . ix 0)
+          isValid x2 y2 =
+            let Just u = g ^? used x2 y2
+            in 0 <= x2 && x2 < mx && 0 <= y2 && y2 < my && u < 100
+      zxy'@(zx', zy') <-
+        [(zx + 1, zy), (zx - 1, zy), (zx, zy + 1), (zx, zy - 1)]
+      guard (isValid zx' zy')
+      let xy' =
+            if xy == zxy'
+              then zxy
+              else xy
+      pure (xy', zxy')

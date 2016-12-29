@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables, ViewPatterns#-}
 
 module AdventPrelude
   ( module ClassyPrelude
@@ -16,6 +17,7 @@ module AdventPrelude
   , (!)
   , showBytes
   , md5Hash
+  , stepSearch
   ) where
 
 import ClassyPrelude
@@ -31,6 +33,8 @@ import Data.Attoparsec.Text
 import Data.Bits
 import Data.Char (chr,ord)
 import Data.List (elemIndex, transpose)
+import Data.Heap (MinPrioHeap)
+import qualified Data.Heap as H
 import Data.Sequence (Seq, ViewL(..), viewl, (|>), (><))
 import Data.Text.Format hiding (print)
 import Data.Vector ((//))
@@ -55,3 +59,19 @@ showBytes bs =
 
 md5Hash :: ByteString -> ByteString
 md5Hash = MD5.hash
+
+stepSearch
+  :: forall a b.
+     Ord b
+  => (a -> [a]) -> (a -> Int) -> (a -> Bool) -> (a -> b) -> a -> [a]
+stepSearch s h g pi i = go (H.singleton (h i + 1, [i])) mempty
+  where
+    go :: MinPrioHeap Int [a] -> Set b -> [a]
+    go (H.view -> Just ((_, p@(a:_)), q)) c
+      | g a = p
+      | otherwise =
+        let ns = filter ((`notMember` c) . pi) (s a)
+            l = length p
+            ps = fmap (\n -> (l + 1 + h n, n : p)) ns
+        in go (foldl' (flip H.insert) q ps)
+              (foldl' (flip insertSet) c (map pi ns))

@@ -24,6 +24,7 @@ library
                      , containers
                      , cryptohash
                      , either
+                     , heap
                      , lens
                      , linear
                      , mtl
