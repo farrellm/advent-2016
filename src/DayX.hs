@@ -2,7 +2,7 @@
 
 module DayX where
 
-import AdventPrelude
+import AdventPrelude2
 
 input :: IO Text
 input = readFile "data/dayX.txt"
