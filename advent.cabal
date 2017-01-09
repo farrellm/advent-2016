@@ -17,7 +17,8 @@ library
   hs-source-dirs:      src
   exposed-modules:     Lib
                      , AdventPrelude
-                     , Day22
+                     , AdventPrelude2
+                     , Day23
   build-depends:       base >= 4.7 && < 5
                      , attoparsec
                      , classy-prelude
@@ -29,6 +30,8 @@ library
                      , linear
                      , mtl
                      , microlens-platform
+                     , mono-traversable
+                     , protolude
                      , text-format
                      , unordered-containers
                      , vector
