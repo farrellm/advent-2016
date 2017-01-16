@@ -55,19 +55,9 @@ makeLenses ''BunnyState
 eval :: Op -> State BunnyState ()
 eval op =
   case op of
-    (Cpy v r) -> do
-      x <- val v
-      reg . ix r .= x
-    (Inc r) -> do
-      -- fix space leak
-      Just v <- preuse (reg . ix r)
-      let v' = v + 1
-      v' `seq` reg . ix r .= v'
-    (Dec r) -> do
-      -- fix space leak
-      Just v <- preuse (reg . ix r)
-      let v' = v - 1
-      v' `seq` reg . ix r .= v'
+    (Cpy v r) -> reg . ix r <~ val v
+    (Inc r) -> reg . ix r %= succ
+    (Dec r) -> reg . ix r %= pred
     (Jnz vz vd) -> do
       z <- val vz
       d <- val vd
@@ -115,11 +105,11 @@ result1 =
      pure
        (execState
           run
-          (BunnyState
-           { _ops = i
-           , _instr = 0
-           , _reg = Map.fromList [('a', 7), ('b', 0), ('c', 0), ('d', 0)]
-           }))
+          BunnyState
+          { _ops = i
+          , _instr = 0
+          , _reg = Map.fromList [('a', 7), ('b', 0), ('c', 0), ('d', 0)]
+          })
 
 runOpt :: State BunnyState ()
 runOpt = go
@@ -158,8 +148,8 @@ result2 =
      pure
        (execState
           runOpt
-          (BunnyState
-           { _ops = i
-           , _instr = 0
-           , _reg = Map.fromList [('a', 12), ('b', 0), ('c', 0), ('d', 0)]
-           }))
+          BunnyState
+          { _ops = i
+          , _instr = 0
+          , _reg = Map.fromList [('a', 12), ('b', 0), ('c', 0), ('d', 0)]
+          })
